@@ -47,11 +47,14 @@ function OrdersPage() {
   const canUpdate = useCan('orders.update')
   const fresh = useStore(liveStore, (s) => s.fresh.length)
 
-  const { data, error, isPending, isPlaceholderData, refetch } = useQuery(ordersQuery(search))
+  const { data, error, isPending, isPlaceholderData, isFetching, refetch } = useQuery(ordersQuery(search))
   const bulk = useBulkStatus()
 
   const [selection, setSelection] = useState<RowSelectionState>({})
   const [visibility, setVisibility] = useState(loadVisibility)
+
+  /** Заказы, которые только что показали по кнопке «Показать» — их строки отмечены. */
+  const [revealed, setRevealed] = useState<string[]>([])
 
   const onSearch = (patch: Partial<OrdersSearch>) => {
     // Выбор относится к тому списку, который был на экране: сменился список — выбор сброшен.
@@ -75,11 +78,19 @@ function OrdersPage() {
   })
 
   // Показать новые: перезапросить списки и перейти к началу «свежие сверху».
+  // Какие именно заказы «новые», запоминаем: после обновления их строки отмечены,
+  // иначе человек нажал кнопку — а что изменилось, непонятно.
   const showFresh = () => {
+    setRevealed(liveStore.get().fresh)
     live.clearFresh()
     void queryClient.invalidateQueries({ queryKey: keys.orderLists })
     if (search.page !== 0 || search.sort !== 'createdAt' || search.dir !== 'desc') onSearch({ page: 0, sort: 'createdAt', dir: 'desc' })
   }
+  // Сколько из показанных реально попало в таблицу: остальные скрыты фильтрами или на другой странице.
+  const revealedSet = new Set(revealed)
+  const revealedVisible = (data?.rows ?? []).filter((row) => revealedSet.has(row.id)).length
+  const revealedHidden = isPlaceholderData || isFetching ? 0 : revealed.length - revealedVisible
+
   const selectedIds = Object.keys(selection).filter((id) => selection[id])
   const pageCount = Math.max(1, Math.ceil((data?.rowCount ?? 0) / search.size))
 
@@ -120,6 +131,31 @@ function OrdersPage() {
         </div>
       )}
 
+      {fresh === 0 && revealed.length > 0 && !isFetching && (
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-card px-4 py-2 text-sm">
+          {revealedVisible > 0 && (
+            <span>
+              <span className="mr-2 inline-block h-3.5 w-1 rounded-full bg-primary align-middle" aria-hidden />
+              {count(revealedVisible, ['новый заказ отмечен', 'новых заказа отмечены', 'новых заказов отмечены'])} в таблице
+            </span>
+          )}
+          {revealedHidden > 0 && (
+            <span className="text-muted-foreground">
+              {revealedVisible > 0 ? 'Ещё ' : ''}
+              {count(revealedHidden, ['заказ не подходит', 'заказа не подходят', 'заказов не подходят'])} под фильтры
+            </span>
+          )}
+          {revealedHidden > 0 && activeFilters(search) > 0 && (
+            <Button size="xs" variant="outline" onClick={() => void navigate({ search: (prev) => ({ ...prev, status: [], q: '', from: '', to: '', page: 0 }), replace: true })}>
+              Сбросить фильтры
+            </Button>
+          )}
+          <Button size="xs" variant="ghost" className="ml-auto" onClick={() => setRevealed([])}>
+            Понятно
+          </Button>
+        </div>
+      )}
+
       {selectedIds.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm">
           <span className="mr-1 font-medium">Выбрано: {selectedIds.length}</span>
@@ -152,7 +188,7 @@ function OrdersPage() {
         ) : data.rows.length === 0 ? (
           <EmptyState title="Ничего не найдено" description="Попробуйте изменить запрос или сбросить фильтры." />
         ) : (
-          <OrdersTable table={table} dimmed={isPlaceholderData} />
+          <OrdersTable table={table} dimmed={isPlaceholderData} highlighted={revealedSet} />
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-2.5 text-sm">

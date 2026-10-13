@@ -150,7 +150,15 @@ export function useOrdersTable({ rows, rowCount, search, onSearch, selection, on
   })
 }
 
-export function OrdersTable({ table, dimmed }: { table: ReturnType<typeof useOrdersTable>; dimmed: boolean }) {
+export function OrdersTable({
+  table,
+  dimmed,
+  highlighted,
+}: {
+  table: ReturnType<typeof useOrdersTable>
+  dimmed: boolean
+  /** Заказы, показанные по кнопке «Показать новые». */ highlighted: Set<string>
+}) {
   const touched = useStore(liveStore, (s) => s.touched)
 
   return (
@@ -200,7 +208,8 @@ export function OrdersTable({ table, dimmed }: { table: ReturnType<typeof useOrd
             // Метка времени в key: строку изменило событие из сокета → React создаёт её заново → анимация подсветки играет.
             key={`${row.id}:${touched[row.id] ?? 0}`}
             data-state={row.getIsSelected() ? 'selected' : undefined}
-            className={cn(isRecent(touched[row.id]) && 'flash-row')}
+            // Отметка «новый»: полоска слева и лёгкий фон — держится, пока человек её не снимет.
+            className={cn(isRecent(touched[row.id]) && 'flash-row', highlighted.has(row.id) && 'bg-primary/10 shadow-[inset_3px_0_0_var(--primary)]')}
           >
             {row.getVisibleCells().map((cell) => (
               <TableCell key={cell.id} className={cn(NUMERIC.has(cell.column.id) && 'text-right')}>
