@@ -5,7 +5,7 @@ import { ArrowLeftIcon, Trash2Icon } from 'lucide-react'
 import { ApiError } from '@/api/http'
 import { useDeleteProduct } from '@/api/mutations'
 import { productQuery } from '@/api/queries'
-import { ErrorState, Page, PageHeader } from '@/components/page'
+import { Page, PageHeader } from '@/components/page'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,11 +34,6 @@ export const Route = createFileRoute('/_app/products/$productId')({
     }
   },
   component: ProductPage,
-  errorComponent: ({ error, reset }) => (
-    <Page>
-      <ErrorState error={error instanceof Error ? error : new Error(String(error))} onRetry={reset} />
-    </Page>
-  ),
   notFoundComponent: () => (
     <Page className="items-center py-20 text-center">
       <p className="text-lg font-medium">Товар не найден</p>

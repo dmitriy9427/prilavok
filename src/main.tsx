@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/geist'
 import './index.css'
 
+import { RouteError } from '@/components/page'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { USE_MOCK } from '@/config'
 import { queryClient } from '@/lib/query-client'
@@ -24,6 +25,8 @@ const router = createRouter({
   defaultPreload: 'intent',
   // Кэшем данных управляет TanStack Query; роутеру свой кэш загрузчиков не нужен.
   defaultPreloadStaleTime: 0,
+  // Экран ошибки для любого маршрута, у которого нет своего.
+  defaultErrorComponent: RouteError,
 })
 
 // Новый экран — с начала страницы. (Встроенный scrollRestoration роутера вставляет в разметку

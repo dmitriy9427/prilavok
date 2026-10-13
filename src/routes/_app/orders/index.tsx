@@ -25,7 +25,9 @@ export const Route = createFileRoute('/_app/orders/')({
   // Значения по умолчанию в адрес не пишутся: /orders, а не /orders?page=0&size=20&sort=…
   search: { middlewares: [stripSearchParams(ORDERS_DEFAULTS)] },
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => context.queryClient.ensureQueryData(ordersQuery(deps)),
+  // prefetchQuery, а не ensureQueryData: он не бросает ошибку. Если запрос упал, экран всё равно
+  // откроется и сам покажет «Не удалось загрузить» с кнопкой «Повторить» (useQuery ниже).
+  loader: ({ context, deps }) => context.queryClient.prefetchQuery(ordersQuery(deps)),
   component: OrdersPage,
 })
 
@@ -178,7 +180,7 @@ function OrdersPage() {
 
       <div className="overflow-hidden rounded-xl border bg-card">
         {error ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
+          <ErrorState error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : isPending ? (
           <div className="flex flex-col gap-2 p-4">
             {Array.from({ length: 10 }, (_, i) => (

@@ -30,7 +30,9 @@ export const Route = createFileRoute('/_app/products/')({
   }),
   search: { middlewares: [stripSearchParams(DEFAULTS)] },
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => context.queryClient.ensureQueryData(productsQuery(deps)),
+  // prefetchQuery, а не ensureQueryData: он не бросает ошибку. Если запрос упал, экран всё равно
+  // откроется и сам покажет «Не удалось загрузить» с кнопкой «Повторить» (useQuery ниже).
+  loader: ({ context, deps }) => context.queryClient.prefetchQuery(productsQuery(deps)),
   component: ProductsPage,
 })
 
@@ -55,7 +57,7 @@ function ProductsPage() {
   const search = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const canCreate = useCan('products.create')
-  const { data, error, isPending, isPlaceholderData, refetch } = useQuery(productsQuery(search))
+  const { data, error, isPending, isPlaceholderData, isFetching, refetch } = useQuery(productsQuery(search))
   // Остатки меняются, когда приходят заказы, — слушаем канал, пока экран открыт.
   useChannel(CHANNELS.products)
 
@@ -110,7 +112,7 @@ function ProductsPage() {
 
       <div className="overflow-hidden rounded-xl border bg-card">
         {error ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
+          <ErrorState error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : isPending ? (
           <div className="flex flex-col gap-2 p-4">
             {Array.from({ length: 8 }, (_, i) => (

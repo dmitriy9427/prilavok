@@ -59,7 +59,7 @@ function CustomersPage() {
   const setSearch = (patch: Partial<typeof search>) => void navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true })
   const [text, setText] = useDebouncedInput(search.q, (q) => setSearch({ q }))
 
-  const { data, error, isPending, isPlaceholderData, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = useInfiniteQuery(
+  const { data, error, isPending, isPlaceholderData, isFetching, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = useInfiniteQuery(
     customersQuery({ q: search.q, segment: search.segment }),
   )
 
@@ -138,7 +138,7 @@ function CustomersPage() {
         </div>
 
         {error ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
+          <ErrorState error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : isPending ? (
           <div className="flex flex-col gap-2 p-4">
             {Array.from({ length: 9 }, (_, i) => (

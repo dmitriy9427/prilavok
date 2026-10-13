@@ -142,6 +142,13 @@ function Experiments() {
   const controls = useMockControls()
   const [muted, setMuted] = useState(() => realtime.debug.isMuted())
   const [offline, setOffline] = useState(false)
+  // Этот рычаг НЕ сбрасывается при уходе с экрана: смысл опыта — походить по экранам со сломанным сервером.
+  const [failing, setFailing] = useState(false)
+  const [syncedControls, setSyncedControls] = useState(controls)
+  if (controls !== syncedControls) {
+    setSyncedControls(controls)
+    setFailing(controls?.isFailingHttp() ?? false)
+  }
 
   // Уходим с экрана — возвращаем всё как было: «сломанная» связь не должна остаться незаметно.
   useEffect(
@@ -201,6 +208,24 @@ function Experiments() {
                 <Button variant="outline" size="sm" onClick={() => controls.restartServer()}>
                   Перезапустить
                 </Button>
+              </Experiment>
+              <Experiment
+                title="Сервер отвечает ошибкой"
+                watch="Все HTTP-запросы получают 500. Откройте любой экран — увидите «Не удалось загрузить». Выключите и нажмите «Повторить»"
+              >
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="fail-http" className="sr-only">
+                    Сервер отвечает ошибкой
+                  </Label>
+                  <Switch
+                    id="fail-http"
+                    checked={failing}
+                    onCheckedChange={(on) => {
+                      setFailing(on)
+                      controls.failHttp(on)
+                    }}
+                  />
+                </div>
               </Experiment>
               <Experiment title="Создать заказ" watch="Событие order.created в канале orders: счётчик в меню, лента на дашборде">
                 <Button variant="outline" size="sm" onClick={() => controls.newOrder()}>

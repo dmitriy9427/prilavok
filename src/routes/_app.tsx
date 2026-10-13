@@ -53,9 +53,10 @@ function AppLayout() {
           <Notifications />
         </header>
         <OfflineBanner />
-        <main className="min-w-0 flex-1">
+        {/* SidebarInset уже рисует <main> — второй на странице быть не должно. */}
+        <div className="min-w-0 flex-1">
           <Outlet />
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

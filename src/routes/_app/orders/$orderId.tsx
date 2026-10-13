@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { ApiError } from '@/api/http'
 import { useOrderStatus } from '@/api/mutations'
 import { orderQuery } from '@/api/queries'
-import { ErrorState, Page } from '@/components/page'
+import { Page } from '@/components/page'
 import { STATUS_DOT, StatusBadge } from '@/components/status-badge'
 import {
   AlertDialog,
@@ -40,11 +40,6 @@ export const Route = createFileRoute('/_app/orders/$orderId')({
     }
   },
   component: OrderPage,
-  errorComponent: ({ error, reset }) => (
-    <Page>
-      <ErrorState error={error instanceof Error ? error : new Error(String(error))} onRetry={reset} />
-    </Page>
-  ),
   notFoundComponent: () => (
     <Page className="items-center py-20 text-center">
       <p className="text-lg font-medium">Заказ не найден</p>

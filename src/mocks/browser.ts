@@ -70,6 +70,9 @@ window.addEventListener('pagehide', () => {
 
 const apiPath = new URL(API_URL).pathname
 
+/** Режим «сервер сломан»: все запросы, кроме входа, получают 500 (экран «Соединение» → опыты). */
+let failing = false
+
 const handlers = [
   http.all(`${API_URL}/*`, async ({ request }) => {
     const url = new URL(request.url)
@@ -79,6 +82,10 @@ const handlers = [
     // Настоящий сервер отвечает не мгновенно. Без задержки не видно состояний загрузки,
     // а оптимистичные обновления неотличимы от обычных.
     await delay(120 + Math.random() * 230)
+
+    if (failing && !url.pathname.includes('/auth/')) {
+      return HttpResponse.json({ error: { code: 'internal', message: 'Сервер временно недоступен (имитация)' } }, { status: 500 })
+    }
 
     const response = backend.handle({
       method: request.method,
@@ -137,5 +144,13 @@ export const mockControls = {
     sessionStorage.removeItem(STORAGE_KEY)
     location.reload()
   },
+  /** HTTP-запросы отвечают ошибкой 500 — проверить экраны ошибок и кнопку «Повторить». */
+  failHttp: (on: boolean) => {
+    failing = on
+  },
+  isFailingHttp: () => failing,
   info: () => backend.hub.info,
 }
+
+// В разработке рычаги доступны из консоли браузера: __mock.failHttp(true), __mock.newOrder()…
+if (import.meta.env.DEV) (window as unknown as { __mock: typeof mockControls }).__mock = mockControls
