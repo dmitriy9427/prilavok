@@ -1,0 +1,158 @@
+# 09. Маршруты: TanStack Router
+
+Файлы: `src/routes/`, `src/main.tsx`, `src/features/orders/search.ts`.
+
+## Файлы — это адреса
+
+```
+src/routes/
+├── __root.tsx               оболочка всего приложения
+├── login.tsx                /login
+├── _app.tsx                 каркас с меню  (подчёркивание — в адрес не попадает)
+└── _app/
+    ├── index.tsx            /
+    ├── orders/index.tsx     /orders
+    ├── orders/$orderId.tsx  /orders/o_15   ($ — параметр)
+    ├── products/index.tsx   /products
+    ├── products/new.tsx     /products/new
+    ├── products/$productId.tsx
+    ├── customers.tsx        /customers
+    ├── realtime.tsx         /realtime
+    └── settings.tsx         /settings
+```
+
+Плагин Vite читает папку и создаёт `src/routeTree.gen.ts` — дерево маршрутов с типами.
+Файл генерируется, руками не правится (но хранится в репозитории: без него не пройдёт
+проверка типов).
+
+## Типы адресов
+
+```tsx
+<Link to="/orders/$orderId" params={{ orderId: order.id }} />
+<Link to="/" search={{ period: 7 }} />
+navigate({ to: '/products/$productId', params: { productId } })
+```
+
+Опечатка в адресе, забытый параметр, неверный тип параметра поиска — ошибки компиляции.
+Это включается одной декларацией в `main.tsx`:
+
+```ts
+declare module '@tanstack/react-router' {
+  interface Register { router: typeof router }
+}
+```
+
+## Состояние в адресе
+
+Фильтры, сортировка, страница списка заказов живут в адресе:
+
+```
+/orders?status=["new","paid"]&q=иванов&sort=total&page=2
+```
+
+| Что это даёт | |
+| --- | --- |
+| Ссылкой можно поделиться | коллега увидит тот же список |
+| F5 ничего не сбрасывает | |
+| «Назад» возвращает прошлые фильтры | |
+| Не нужен стейт-менеджер | адрес и есть хранилище |
+
+Схема проверяет адрес при каждом переходе:
+
+```ts
+export const ordersSearch = z.object({
+  page: z.number().int().min(0).default(0).catch(0),
+  sort: z.enum(ORDER_SORTS).default('createdAt').catch('createdAt'),
+  status: z.array(z.enum(ORDER_STATUSES)).default([]).catch([]),
+  …
+})
+
+createFileRoute('/_app/orders/')({
+  validateSearch: ordersSearch,
+  search: { middlewares: [stripSearchParams(ORDERS_DEFAULTS)] },
+})
+```
+
+- `.default()` — параметра нет → значение по умолчанию;
+- `.catch()` — параметр есть, но неверный (`?page=abc`) → тоже значение по умолчанию, экран
+  не падает. Адрес — это пользовательский ввод;
+- `stripSearchParams` — значения по умолчанию в адрес не пишутся: `/orders`, а не
+  `/orders?page=0&size=20&sort=createdAt…`.
+
+В компоненте:
+
+```ts
+const search = Route.useSearch()                                // типизированный объект
+navigate({ search: (prev) => ({ ...prev, page: 2 }), replace: true })
+```
+
+`replace: true` — фильтры не засоряют историю: «назад» уводит с экрана, а не отматывает
+каждую букву поиска.
+
+Что **не** кладут в адрес: выбранные галочками строки, открытые меню, текст в поле до
+окончания ввода (поиск уходит в адрес через 300 мс после паузы — `useDebouncedInput`).
+
+## Загрузчики
+
+```ts
+loaderDeps: ({ search }) => search,
+loader: ({ context, deps }) => context.queryClient.ensureQueryData(ordersQuery(deps)),
+```
+
+Загрузчик выполняется **до** показа экрана. Сравните:
+
+| Без загрузчика | С загрузчиком |
+| --- | --- |
+| показали экран → эффект → запрос → скелет → данные | запрос начинается при переходе (или наведении на ссылку) → экран уже с данными |
+
+- `ensureQueryData` — «возьми из кэша, а нет — загрузи». Данными по-прежнему владеет Query;
+  роутер лишь запускает загрузку раньше.
+- `loaderDeps` — от чего зависит загрузчик: сменился фильтр — выполнится снова.
+- `defaultPreload: 'intent'` — навели мышь на ссылку, и роутер уже грузит код и данные
+  экрана. Переход кажется мгновенным.
+- В компоненте `useSuspenseQuery` отдаёт данные сразу, `data` не бывает `undefined`.
+
+404 из API превращается в «не найдено» роутера:
+
+```ts
+if (error instanceof ApiError && error.status === 404) throw notFound()
+```
+
+## Охрана входа
+
+```ts
+// _app.tsx — выполняется до загрузки данных любого экрана внутри
+beforeLoad: ({ location }) => {
+  if (!auth.session) throw redirect({ to: '/login', search: { redirect: location.href } })
+}
+```
+
+После входа человек возвращается туда, куда шёл. Адрес возврата проверяется:
+
+```ts
+const target = search.redirect?.startsWith('/') && !search.redirect.startsWith('//') ? search.redirect : null
+```
+
+Без проверки ссылка `/login?redirect=https://злой.сайт` увела бы пользователя на чужой сайт
+сразу после входа (уязвимость open redirect).
+
+Охрана по правам — так же: `/products/new` проверяет `auth.can('products.create')`.
+
+Это удобство, а не защита: настоящая проверка — на сервере. Код экрана всё равно доступен
+любому, кто откроет DevTools.
+
+## Разделение кода
+
+`tanstackRouter({ autoCodeSplitting: true })` — компонент каждого маршрута уходит в
+отдельный файл и грузится при первом переходе. Форма товара с react-hook-form не грузится,
+пока человек на дашборде. Мок-сервер тоже подключается динамическим `import()` — в режиме
+настоящего сервера его код не скачивается.
+
+## Подпапка на GitHub Pages
+
+Сайт живёт по адресу `https://<user>.github.io/prilavok/`. Три настройки:
+
+1. `base: '/prilavok/'` в Vite (из переменной `VITE_BASE`) — пути к файлам сборки;
+2. `basepath: import.meta.env.BASE_URL` у роутера — где корень приложения;
+3. `404.html` = копия `index.html` — прямой заход на `/prilavok/orders` (такого файла нет)
+   отдаёт приложение, и роутер сам открывает нужный экран.

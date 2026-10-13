@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Прилавок — админка магазина</title>
+    <meta name="description" content="Админка интернет-магазина: заказы в реальном времени по WebSocket, товары, клиенты, аналитика." />
+    <meta name="theme-color" content="#c2652a" />
+    <script>
+      // Тема — до первой отрисовки, чтобы тёмная не мигала белым (см. src/lib/theme.ts).
+      ;(function () {
+        var saved = localStorage.getItem('prilavok:theme')
+        var dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', dark)
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

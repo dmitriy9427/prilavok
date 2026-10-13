@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "ignorePatterns": ["src/routeTree.gen.ts", "src/components/ui/**", "src/hooks/use-mobile.ts", "public/**", "dist/**"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/only-export-components": "off",
+    "react/incompatible-library": "off",
+    "no-irregular-whitespace": ["error", { "skipComments": true, "skipStrings": true, "skipTemplates": true }]
+  }
+}
